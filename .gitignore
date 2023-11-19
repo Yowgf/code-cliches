@@ -1,0 +1,8 @@
+# Backup files
+*~
+
+# Emacs
+*#*
+
+# Windows-style executables
+*.exe
