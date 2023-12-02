@@ -6,3 +6,6 @@
 
 # Windows-style executables
 *.exe
+
+# Other executable extensions
+*.out
