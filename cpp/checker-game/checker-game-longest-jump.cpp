@@ -10,9 +10,21 @@
 #include <utility>
 #include <vector>
 
-using std::cout, std::atoi, std::string, std::ifstream;
+using std::cout, std::cerr, std::atoi, std::string, std::ifstream;
 
-using pos = std::pair<uint32_t, uint32_t>;
+using pos = std::pair<int32_t, int32_t>;
+
+string position_to_string(pos p) {
+  return std::to_string(p.first) + "," + std::to_string(p.second);
+}
+
+string positions_to_string(std::vector<pos>& poss) {
+  std::stringstream ss;
+  for (auto p : poss) {
+    ss << position_to_string(p) << " ";
+  }
+  return ss.str();
+}
 
 class Board {
 private:
@@ -78,6 +90,9 @@ public:
 };
 
 pos left(pos p) {
+  if (p.first == 0) {
+    return p;
+  }
   return pos(p.first - 1, p.second);
 }
 
@@ -90,6 +105,9 @@ pos up(pos p) {
 }
 
 pos down(pos p) {
+  if (p.second == 0) {
+    return p;
+  }
   return pos(p.first, p.second - 1);
 }
 
@@ -102,9 +120,11 @@ bool is_valid_pos(Board& board, pos p) {
     && p.second >= 0 && p.second < board.get_board_size();
 }
 
-bool is_valid_move(Board& board, uint32_t player, pos orig, pos move_vec) {
-  auto dest_pos = sum_pos(orig, sum_pos(move_vec, move_vec));
+bool is_valid_move(Board& board, uint32_t player, pos orig, pos dest_pos) {
+  auto move_vec = pos((dest_pos.first - orig.first) / 2,
+                      (dest_pos.second - orig.second) / 2);
   auto middle_pos = sum_pos(orig, move_vec);
+  cerr << "Middle pos: " << position_to_string(middle_pos) << "\n";
   if (!is_valid_pos(board, orig) || !is_valid_pos(board, dest_pos)) {
     return false;
   }
@@ -115,9 +135,9 @@ bool is_valid_move(Board& board, uint32_t player, pos orig, pos move_vec) {
 
 std::vector<pos> find_landing_positions(Board& board, uint32_t player,
                                         const pos& starting_pos) {
-  std::vector<pos> positions{left(starting_pos), right(starting_pos),
-                             up(starting_pos), down(starting_pos)};
-  auto cond = [&](pos p) { return is_valid_move(board, player, starting_pos, p); };
+  std::vector<pos> positions{left(left(starting_pos)), right(right(starting_pos)),
+                             up(up(starting_pos)), down(down(starting_pos))};
+  auto cond = [&](pos p) { return !is_valid_move(board, player, starting_pos, p); };
   positions.erase(std::remove_if(positions.begin(), positions.end(), cond),
                   positions.end());
   return positions;
@@ -126,12 +146,31 @@ std::vector<pos> find_landing_positions(Board& board, uint32_t player,
 uint32_t longest_jump(Board& board, pos from_where) {
   uint32_t record = 0;
   uint32_t cur_player = board.at(from_where);
-  std::stack<pos> track;
+  // track is used to track which positions have already been parsed.
+  std::vector<pos> track{from_where};
+
+  std::stack<std::pair<pos, uint32_t>> positions_to_jump_to;
   auto landing_positions = find_landing_positions(board, cur_player, from_where);
   for (auto p : landing_positions) {
-    track.push(p);
+    positions_to_jump_to.push(std::make_pair(p, 0));
   }
-  while (!landing_positions.empty()) {}
+  while (!positions_to_jump_to.empty()) {
+    auto [p, num_jumps] = positions_to_jump_to.top();
+    cerr << "In positions_to_jump_to loop. Position: " << p.first << "," << p.second <<
+      " Number of jumps: " << num_jumps << "\n";
+    positions_to_jump_to.pop();
+    if (num_jumps + 1 > record) {
+      record = num_jumps + 1;
+    }
+    landing_positions = find_landing_positions(board, cur_player, p);
+    track.push_back(p);
+    cerr << "Found landing positions: " << positions_to_string(landing_positions) << '\n';
+    for (auto p : landing_positions) {
+      if (std::find(track.begin(), track.end(), p) == track.end()) {
+        positions_to_jump_to.push(make_pair(p, record));
+      }
+    }
+  }
   return record;
 }
 
@@ -139,7 +178,7 @@ int main(int argc, char** argv) {
   const uint32_t num_args = argc - 1;
   const uint32_t required_num_args = 3;
   if (num_args != required_num_args) {
-    cout << "Usage: ./program <board-file-path> <start-x> <start-y>\n";
+    cerr << "Usage: ./program <board-file-path> <start-x> <start-y>\n";
     return 1;
   }
   Board board{string(argv[1])};
