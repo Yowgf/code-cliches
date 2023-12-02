@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <unordered_set>
 #include <sstream>
 #include <stack>
 #include <stdexcept>
@@ -13,6 +14,12 @@
 using std::cout, std::cerr, std::atoi, std::string, std::ifstream;
 
 using pos = std::pair<int32_t, int32_t>;
+
+struct PosHash {
+    size_t operator()(const pos& p) const {
+        return std::hash<uint32_t>()(p.first) ^ std::hash<uint32_t>()(p.second);
+    }
+};
 
 string position_to_string(pos p) {
   return std::to_string(p.first) + "," + std::to_string(p.second);
@@ -143,11 +150,12 @@ std::vector<pos> find_landing_positions(Board& board, uint32_t player,
   return positions;
 }
 
-uint32_t longest_jump(Board& board, pos from_where) {
+std::pair<uint32_t, std::unordered_set<pos, PosHash>>
+longest_jump(Board& board, pos from_where) {
   uint32_t record = 0;
   uint32_t cur_player = board.at(from_where);
-  // track is used to track which positions have already been parsed.
-  std::vector<pos> track{from_where};
+  // path is used to track which positions have already been parsed.
+  std::unordered_set<pos, PosHash> path{from_where};
 
   std::stack<std::pair<pos, uint32_t>> positions_to_jump_to;
   auto landing_positions = find_landing_positions(board, cur_player, from_where);
@@ -163,15 +171,15 @@ uint32_t longest_jump(Board& board, pos from_where) {
       record = num_jumps + 1;
     }
     landing_positions = find_landing_positions(board, cur_player, p);
-    track.push_back(p);
+    path.insert(p);
     cerr << "Found landing positions: " << positions_to_string(landing_positions) << '\n';
     for (auto p : landing_positions) {
-      if (std::find(track.begin(), track.end(), p) == track.end()) {
+      if (path.find(p) == path.end()) {
         positions_to_jump_to.push(make_pair(p, record));
       }
     }
   }
-  return record;
+  return make_pair(record, path);
 }
 
 int main(int argc, char** argv) {
@@ -183,10 +191,11 @@ int main(int argc, char** argv) {
   }
   Board board{string(argv[1])};
   auto from_where = pos(std::atoi(argv[2]), std::atoi(argv[3]));
+  auto [num_jumps, path] = longest_jump(board, from_where);
   cout << "Longest jump in board\n"
     << board.to_string()
     << "\n"
-    << "Is " << longest_jump(board, from_where) << "\n"
+    << "Is " << num_jumps << "\n"
     ;
   return 0;
 }
