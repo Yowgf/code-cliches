@@ -85,7 +85,7 @@ function map_letter_number_to_number {
 # >> state=on
 # >> input=e
 # >> number_tree[$state,$input]
-# SUCCESS
+# one
 #
 # This logic is encapsulated in the function tree_at
 declare -A number_tree
