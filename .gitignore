@@ -9,3 +9,9 @@
 
 # Other executable extensions
 *.out
+
+# Binary extensions
+*.o
+*.so
+## Haskell
+*.hi
