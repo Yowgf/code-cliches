@@ -10,7 +10,12 @@ function is_number {
 }
 
 function map_letter_number_to_number {
-    case "$1" in
+    letter_number="$1"
+    is_reverse="$2"
+    if [ "$is_reverse" = y ]; then
+        letter_number="$(echo "$letter_number" | rev)"
+    fi
+    case "$letter_number" in
         one)
             echo 1
             ;;
@@ -82,134 +87,98 @@ function map_letter_number_to_number {
 # >> number_tree[$state,$input]
 # SUCCESS
 #
-# This logic is encapsulated in the function state_machine_ate
-#
-# TODO: write function that automatically builds number_tree
+# This logic is encapsulated in the function tree_at
 declare -A number_tree
-number_tree[,o]=o
-number_tree[o,n]=on
-number_tree[on,e]=one
-# t
-number_tree[,t]=t
-# two
-number_tree[t,w]=tw
-number_tree[tw,o]=two
-# three
-number_tree[t,h]=th
-number_tree[th,r]=thr
-number_tree[thr,e]=thre
-number_tree[thre,e]=three
-# f
-number_tree[,f]=f
-# four
-number_tree[f,o]=fo
-number_tree[fo,u]=fou
-number_tree[fou,r]=four
-# five
-number_tree[f,i]=fi
-number_tree[fi,v]=fiv
-number_tree[fiv,e]=five
-# s
-number_tree[,s]=s
-# six
-number_tree[s,i]=si
-number_tree[si,x]=six
-# seven
-number_tree[s,e]=se
-number_tree[se,v]=sev
-number_tree[sev,e]=seve
-number_tree[seve,n]=seven
-# eight
-number_tree[,e]=e
-number_tree[e,i]=ei
-number_tree[ei,g]=eig
-number_tree[eig,h]=eigh
-number_tree[eigh,t]=eight
-# nine
-number_tree[,n]=n
-number_tree[n,i]=ni
-number_tree[ni,n]=nin
-number_tree[nin,e]=nine
+declare -A number_tree_reverse
 
 function explode_string {
-    $(echo "$1" | sed 's/./& /g')
+    echo "$1" | sed 's/./& /g'
 }
 
 function build_number_trees {
-    declare -A number_tree
-    declare -A number_tree_reverse
     for word in one two three four five six seven eight nine; do
         chars=$(explode_string "$word")
         word_part=""
         for char in $chars; do
-            number_tree["${word_part},${char}"] = "$word_part"
+            number_tree["${word_part},${char}"]="${word_part}${char}"
             word_part="${word_part}${char}"
         done
+        word_part=""
         for char in $(echo "$chars" | rev); do
-            number_tree_reverse["${word_part},${char}"] = "$word_part"
+            number_tree_reverse["${word_part},${char}"]="${word_part}${char}"
             word_part="${word_part}${char}"
         done
     done
 }
 
-# state_macine_at returns the next state, given current state and input.
-function state_machine_at {
+# tree_at returns the next state, given current state and input.
+function tree_at {
     state="$1"
     input="$2"
     echo "${number_tree[$state,$input]}"
 }
 
+# reverse_tree_at returns the next state in the reverse number tree, given
+# current state and input.
+function reverse_tree_at {
+    state="$1"
+    input="$2"
+    echo "${number_tree_reverse[$state,$input]}"
+}
+
 function update_letter_number {
     cur_letter_number="$1"
     new_char="$2"
+    is_reverse="$3"
 
-    potential_new_state="$(state_machine_at "$cur_letter_number" "$new_char")"
-    if [ -z "$potential_new_state" ]; then
-        # No match, start from beginning
-        echo "$new_char"
-    else
-        echo "$potential_new_state"
-    fi
+    while [ "$cur_letter_number" != "" ]; do
+        if [ "$is_reverse" != "y" ]; then
+            potential_new_state="$(tree_at "$cur_letter_number" "$new_char")"
+        else
+            potential_new_state="$(reverse_tree_at "$cur_letter_number" "$new_char")"
+        fi
+        if [ -n "$potential_new_state" ]; then
+            echo "$potential_new_state"
+            return
+        fi
+        cur_letter_number="${cur_letter_number:1}"
+    done
+    # No match, start from beginning
+    echo "$new_char"
 }
 
 function find_first_number {
+    str="$1"
+    is_reverse="$2"
     first_number=""
-    last_number=""
     letter_number=""
-    for char in $1; do
-        if [ $(is_number "$char") != "y" ]; then
-            letter_number="$(update_letter_number "$letter_number" "$char")"
-            potential_number="$(map_letter_number_to_number "$letter_number")"
+    for char in $str; do
+        is_number=$(is_number "$char")
+        # echo "Working with $char, for which is_number=$is_number" 1>&2
+        if [ "$is_number" != "y" ]; then
+            letter_number="$(update_letter_number "$letter_number" "$char" "$is_reverse")"
+            potential_number="$(map_letter_number_to_number "$letter_number" "$is_reverse")"
             if [ -z "$potential_number" ]; then
                 continue
             fi
             echo "Got $potential_number from $letter_number" 1>&2
-            number="$potential_number"
+            first_number="$potential_number"
         else
-            number="$char"
+            first_number="$char"
         fi
-        if [ -z "$first_number" ]; then
-            first_number="$number"
-        else
-            last_number="$number"
-        fi
-        letter_number=""
+        break
     done
-    if [ -z "$first_number" ]; then
-        first_number=0
-    fi
-    if [ -z "$last_number" ]; then
-        last_number="$first_number"
-    fi
-    final_number="${first_number}${last_number}"
-    echo "Adding $final_number" 1>&2
-    (( sum += "$final_number" ))
+    echo "$first_number"
 }
 
+build_number_trees
 sum=0
 for line in $(cat "$input_fpath"); do
     line_list=$(explode_string "$line")
     first_number=$(find_first_number "$line_list")
-    last_number=$(find_first_number $(echo "$line_list" | rev))
+    last_number=$(find_first_number "$(echo "$line_list" | rev)" 'y')
+    aggregate_number="${first_number}${last_number}"
+    echo "Adding $aggregate_number" 1>&2
+    (( sum += aggregate_number ))
 done
 echo "$sum"
