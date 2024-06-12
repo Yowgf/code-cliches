@@ -15,3 +15,7 @@
 *.so
 ## Haskell
 *.hi
+
+obj
+bin
+*.dll
