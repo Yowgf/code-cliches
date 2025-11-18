@@ -10,9 +10,21 @@
 # Other executable extensions
 *.out
 
-# Binary extensions
+# Linux generated files
 *.o
+*.ko
 *.so
+*.cmd
+*.symvers
+*.mod
+*.mod.c
+*.order
+
+# Crypto files
+*.pem
+*.priv
+*.key
+
 ## Haskell
 *.hi
 

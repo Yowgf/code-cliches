@@ -1,12 +1,14 @@
 #include <linux/init.h>
 #include <linux/module.h>
 
-static int my_init() {
+MODULE_LICENSE("MIT");
+
+static int my_init(void) {
   printk(KERN_ALERT "Hello from custom driver running in kernel space.\n");
   return 0;
 }
 
-static void my_exit() {
+static void my_exit(void) {
   printk(KERN_ALERT "Exiting custom driver running in kernel space.\n");
 }
 
